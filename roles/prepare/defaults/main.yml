@@ -1,0 +1,9 @@
+---
+# defaults file for prepare
+update_packages: "true"     # By default, update packages on server is enabled
+configure_ssh: "false"      # By default, configure SSH is disabled. Copy authorized_keys file to server and disable password auth
+open_admin_ports: "true"    # By default, open admin panel ports (5380 and 53443) on server
+firewall: "iptables"        # By default, iptables is used for configuring ports. Possible values include "ufw" or "iptables".
+firewall_protocols:         # For some ports we will enable both TCP and UDP
+  - tcp
+  - udp

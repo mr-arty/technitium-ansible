@@ -1,0 +1,6 @@
+- name: Technitium roles deployment playbook
+  hosts: all
+  remote_user: root
+  roles:
+    - prepare
+    - install-technitium

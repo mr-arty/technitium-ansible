@@ -1,0 +1,133 @@
+- name: Install required tools on Debian-based systems
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - software-properties-common
+    state: present
+    update_cache: yes
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Add Microsoft GPG key
+  ansible.builtin.apt_key:
+    url: https://packages.microsoft.com/keys/microsoft.asc
+    state: present
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Set Microsoft repo base URL depending on Ubuntu version
+  set_fact:
+    microsoft_repo_base: |
+      {% if ansible_distribution_release == "focal" %}
+      https://packages.microsoft.com/ubuntu/20.04/prod
+      {% elif ansible_distribution_release == "jammy" %}
+      https://packages.microsoft.com/ubuntu/22.04/prod
+      {% elif ansible_distribution == "Debian" and ansible_distribution_release == "bookworm" %}
+      https://packages.microsoft.com/debian/12/prod
+      {% else %}
+      https://packages.microsoft.com/ubuntu/{{ ansible_distribution_release | lower }}/prod
+      {% endif %}
+  when:
+    - ansible_facts['os_family'] == "Debian"
+    - ansible_distribution_release != "noble"
+    - ansible_distribution_release != "oracular"
+
+- name: Add Microsoft package repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64] {{ microsoft_repo_base }} {{ ansible_distribution_release | lower }} main"
+    state: present
+    filename: microsoft-prod
+  when: ansible_facts['os_family'] == "Debian" and ansible_distribution_release != "noble"
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install ASP.NET Core Runtime 8.0 on Debian-based systems
+  apt:
+    name: aspnetcore-runtime-8.0
+    state: present
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install yum-utils on RedHat-based systems
+  yum:
+    name: yum-utils
+    state: present
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Install Microsoft YUM repo RPM (CentOS 8 or compatible)
+  ansible.builtin.yum:
+    name: https://packages.microsoft.com/config/centos/8/packages-microsoft-prod.rpm
+    state: present
+  when:
+    - ansible_facts['distribution'] == "CentOS"
+    - ansible_facts['distribution_major_version'] == '8'
+
+- name: Install ASP.NET Core Runtime 8.0 on RedHat-based systems
+  yum:
+    name: aspnetcore-runtime-8.0
+    state: present
+  when: ansible_facts['os_family'] == "RedHat"
+
+### Next steps (install Technitium) ###
+
+- name: Download Technitium
+  ansible.builtin.get_url:
+    url: https://download.technitium.com/dns/DnsServerPortable.tar.gz
+    dest: /tmp/DnsServerPortable.tar.gz
+    mode: '0644'
+
+- name: Uncompress installation files
+  ansible.builtin.shell: |
+    mkdir -p /opt/technitium/dns
+    tar -zxf /tmp/DnsServerPortable.tar.gz -C /opt/technitium/dns
+  args:
+    executable: /bin/sh
+
+- name: Copy systemd service file to /etc/systemd/system/
+  ansible.builtin.copy:
+    src: /opt/technitium/dns/systemd.service
+    dest: /etc/systemd/system/dns.service
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enable service to start on boot
+  ansible.builtin.systemd:
+    name: dns.service
+    enabled: true
+
+- name: Stop systemd-resolved service on debian, if running
+  ansible.builtin.systemd_service:
+    name: systemd-resolved
+    state: stopped
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Make sure a service unit is running
+  ansible.builtin.systemd_service:
+    name: dns.service
+    state: started
+
+- name: Replace /etc/resolv.conf with localhost nameserver entry
+  ansible.builtin.shell: |
+    rm /etc/resolv.conf >> /etc/dns/install.Log 2>&1
+    echo "nameserver 127.0.0.1" > /etc/resolv.conf 2>> /etc/dns/install.Log
+  args:
+    executable: /bin/sh
+
+- name: Find /etc/NetworkManager/NetworkManager.conf file
+  ansible.builtin.find:
+    paths: /etc/NetworkManager/
+    file_type: file
+    patterns: ['NetworkManager.conf']
+  register: found_files
+
+- name: Replace the [main] block in NetworkManager.conf
+  ansible.builtin.replace:
+    path: "{{ found_files.files[0].path }}"
+    regexp: '^\[main\]\n.*\n'  # Match [main] + the next line
+    replace: |
+      [main]
+      dns=default
+  when: found_files.matched > 0

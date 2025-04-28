@@ -1,0 +1,207 @@
+---
+- name: Upgrade packages on Debian based system
+  apt:
+    upgrade: yes
+    update_cache: true
+  when:
+    - update_packages == "true"
+    - ansible_facts['os_family'] == "Debian"
+
+- name: Install iptables-persistent on Debian
+  ansible.builtin.apt:
+    name: iptables-persistent
+    state: present
+  become: yes
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  when:
+    - firewall == "iptables"
+    - ansible_facts['os_family'] == "Debian"
+
+- name: Upgrade packages on RHEL/CentOS
+  ansible.builtin.yum:
+    name: '*'
+    state: latest
+  when:
+    - update_packages == "true"
+    - ansible_facts['os_family'] == "RedHat"
+
+- name: Install iptables on RHEL/CentOS if it's not present
+  ansible.builtin.yum:
+    name:
+      - iptables
+      - iptables-services
+    state: latest
+  when:
+    - firewall == "iptables"
+    - ansible_facts['os_family'] == "RedHat"
+
+- name: "Create root user's .ssh directory"
+  file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: 0700
+  when: configure_ssh == "true"
+
+- name: Copy authorized_keys for SSH
+  copy: 
+    src: authorized_keys
+    dest: /root/.ssh/authorized_keys
+    owner: root
+    group: root
+    mode: 0600
+  when: configure_ssh == "true"
+
+- name: Disabe SSH password authentication
+  ansible.builtin.shell: |
+    sed -i 's/^#PasswordAuthentication/PasswordAuthentication/g' /etc/ssh/sshd_config
+    sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/g' /etc/ssh/sshd_config
+  args:
+    executable: /bin/sh
+  when: configure_ssh == "true"
+
+### Configure ports using ufw ###
+
+- name: Allow access to port 22 (SSH)
+  community.general.ufw:
+    rule: allow
+    port: '22'
+    direction: in
+  when: firewall == "ufw"
+
+- name: Allow access to port 5380 (for web console access)
+  community.general.ufw:
+    rule: allow
+    port: '5380'
+    proto: 'tcp'
+    direction: in
+  when:
+    - firewall == "ufw"
+    - open_admin_ports == "true"
+
+- name: Allow access to port 53443 (for web console HTTPS access)
+  community.general.ufw:
+    rule: allow
+    port: '53443'
+    proto: 'tcp'
+    direction: in
+  when:
+    - firewall == "ufw"
+    - open_admin_ports == "true"
+
+- name: Allow access to port 53 (default DNS service)
+  community.general.ufw:
+    rule: allow
+    port: '53'
+    proto: "{{ item }}"
+    direction: in
+  loop: "{{ firewall_protocols }}"
+  when: firewall == "ufw"
+
+- name: Allow access to port 443 (DNS-over-HTTPS service)
+  community.general.ufw:
+    rule: allow
+    port: '443'
+    proto: 'tcp'
+    direction: in
+  when: firewall == "ufw"
+
+- name: Allow access to port 853 (DNS-over-QUIC service and DNS-over-TLS service)
+  community.general.ufw:
+    rule: allow
+    port: '853'
+    proto: "{{ item }}"
+    direction: in
+  loop: "{{ firewall_protocols }}"
+  when: firewall == "ufw"
+
+- name: Deny all incoming traffic and enable UFW
+  community.general.ufw:
+    state: enabled
+    policy: deny
+  when: firewall == "ufw"
+
+### Configure ports using iptables ###
+
+- name: Allow INPUT established connections
+  ansible.builtin.iptables:
+    table: filter
+    chain: INPUT
+    state: present
+    match: conntrack
+    ctstate: ESTABLISHED,RELATED
+    jump: ACCEPT
+  when: firewall == "iptables"
+
+- name: Allow OUTPUT established connections
+  ansible.builtin.iptables:
+    table: filter
+    chain: OUTPUT
+    state: present
+    match: conntrack
+    ctstate: ESTABLISHED,RELATED
+    jump: ACCEPT
+  when: firewall == "iptables"
+
+- name: Add iptables rule to allow incoming SSH connections
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: '22'
+    jump: ACCEPT
+  become: yes
+  register: iptables_changed
+  when: firewall == "iptables"
+
+- name: Add iptables rule to allow incoming connections (DNS-over-HTTPS service)
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: '443'
+    jump: ACCEPT
+  become: yes
+  register: iptables_changed
+  when: firewall == "iptables"
+
+- name: Add iptables rule to allow access to 
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_ports:
+      - '5380'  # (for web console access)
+      - '53443' # (for web console HTTPS access)
+    jump: ACCEPT
+  become: yes
+  register: iptables_changed
+  when:
+    - firewall == "iptables"
+    - open_admin_ports == "true"
+
+- name: Add iptables rule to allow access to port 53 (default DNS service)
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: "{{ item }}"
+    destination_ports:
+      - '53'    # (default DNS service)
+      - '853'   # (DNS-over-QUIC service and DNS-over-TLS service)
+    jump: ACCEPT
+  loop: "{{ firewall_protocols }}"
+  become: yes
+  register: iptables_changed
+  when: firewall == "iptables"
+
+- name: Save iptables rules (Debian/Ubuntu)
+  ansible.builtin.shell: iptables-save > /etc/iptables/rules.v4
+  become: yes
+  when: 
+    - iptables_changed.changed
+    - ansible_facts['os_family'] == "Debian"
+
+- name: Save iptables rules (RedHat/CentOS)
+  ansible.builtin.command: /usr/libexec/iptables/iptables.init save
+  become: yes
+  when: 
+    - iptables_changed.changed
+    - ansible_facts['os_family'] == "RedHat"

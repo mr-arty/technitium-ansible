@@ -1,0 +1,8 @@
+---
+- name: restart ssh
+  service: name=ssh state=restarted
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+    # Reload systemd to recognize new service file
