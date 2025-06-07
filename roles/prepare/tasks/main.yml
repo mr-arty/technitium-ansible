@@ -71,6 +71,16 @@
     direction: in
   when: firewall == "ufw"
 
+- name: Allow access to port 80 (for getting TLS certificate)
+  community.general.ufw:
+    rule: allow
+    port: '80'
+    proto: 'tcp'
+    direction: in
+  when:
+    - firewall == "ufw"
+    - open_admin_ports == "true"
+
 - name: Allow access to port 5380 (for web console access)
   community.general.ufw:
     rule: allow
@@ -150,6 +160,16 @@
     chain: INPUT
     protocol: tcp
     destination_port: '22'
+    jump: ACCEPT
+  become: yes
+  register: iptables_changed
+  when: firewall == "iptables"
+
+- name: Add iptables rule to allow getting TLS certificate
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: '80'
     jump: ACCEPT
   become: yes
   register: iptables_changed
