@@ -6,6 +6,7 @@
   when:
     - update_packages == "true"
     - ansible_facts['os_family'] == "Debian"
+  tags: [prepare]
 
 - name: Install iptables-persistent on Debian
   ansible.builtin.apt:
@@ -17,6 +18,7 @@
   when:
     - firewall == "iptables"
     - ansible_facts['os_family'] == "Debian"
+  tags: [prepare]
 
 - name: Upgrade packages on RHEL/CentOS
   ansible.builtin.yum:
@@ -25,6 +27,7 @@
   when:
     - update_packages == "true"
     - ansible_facts['os_family'] == "RedHat"
+  tags: [prepare]
 
 - name: Install iptables on RHEL/CentOS if it's not present
   ansible.builtin.yum:
@@ -35,6 +38,7 @@
   when:
     - firewall == "iptables"
     - ansible_facts['os_family'] == "RedHat"
+  tags: [prepare]
 
 - name: "Create root user's .ssh directory"
   file:
@@ -44,6 +48,7 @@
     group: root
     mode: 0700
   when: configure_ssh == "true"
+  tags: [prepare]
 
 - name: Copy authorized_keys for SSH
   copy: 
@@ -53,6 +58,7 @@
     group: root
     mode: 0600
   when: configure_ssh == "true"
+  tags: [prepare]
 
 - name: Disabe SSH password authentication
   ansible.builtin.shell: |
@@ -61,6 +67,7 @@
   args:
     executable: /bin/sh
   when: configure_ssh == "true"
+  tags: [prepare]
 
 ### Configure ports using ufw ###
 
@@ -70,6 +77,7 @@
     port: '22'
     direction: in
   when: firewall == "ufw"
+  tags: [prepare]
 
 - name: Allow access to port 80 (for getting TLS certificate)
   community.general.ufw:
@@ -80,6 +88,7 @@
   when:
     - firewall == "ufw"
     - open_admin_ports == "true"
+  tags: [prepare]
 
 - name: Allow access to port 5380 (for web console access)
   community.general.ufw:
@@ -90,6 +99,7 @@
   when:
     - firewall == "ufw"
     - open_admin_ports == "true"
+  tags: [prepare]
 
 - name: Allow access to port 53443 (for web console HTTPS access)
   community.general.ufw:
@@ -100,6 +110,7 @@
   when:
     - firewall == "ufw"
     - open_admin_ports == "true"
+  tags: [prepare]
 
 - name: Allow access to port 53 (default DNS service)
   community.general.ufw:
@@ -109,6 +120,7 @@
     direction: in
   loop: "{{ firewall_protocols }}"
   when: firewall == "ufw"
+  tags: [prepare]
 
 - name: Allow access to port 443 (DNS-over-HTTPS service)
   community.general.ufw:
@@ -117,6 +129,7 @@
     proto: 'tcp'
     direction: in
   when: firewall == "ufw"
+  tags: [prepare]
 
 - name: Allow access to port 853 (DNS-over-QUIC service and DNS-over-TLS service)
   community.general.ufw:
@@ -126,12 +139,14 @@
     direction: in
   loop: "{{ firewall_protocols }}"
   when: firewall == "ufw"
+  tags: [prepare]
 
 - name: Deny all incoming traffic and enable UFW
   community.general.ufw:
     state: enabled
     policy: deny
   when: firewall == "ufw"
+  tags: [prepare]
 
 ### Configure ports using iptables ###
 
@@ -144,6 +159,7 @@
     ctstate: ESTABLISHED,RELATED
     jump: ACCEPT
   when: firewall == "iptables"
+  tags: [prepare]
 
 - name: Allow OUTPUT established connections
   ansible.builtin.iptables:
@@ -154,6 +170,7 @@
     ctstate: ESTABLISHED,RELATED
     jump: ACCEPT
   when: firewall == "iptables"
+  tags: [prepare]
 
 - name: Add iptables rule to allow incoming SSH connections
   ansible.builtin.iptables:
@@ -164,6 +181,7 @@
   become: yes
   register: iptables_changed
   when: firewall == "iptables"
+  tags: [prepare]
 
 - name: Add iptables rule to allow getting TLS certificate
   ansible.builtin.iptables:
@@ -174,6 +192,7 @@
   become: yes
   register: iptables_changed
   when: firewall == "iptables"
+  tags: [prepare]
 
 - name: Add iptables rule to allow incoming connections (DNS-over-HTTPS service)
   ansible.builtin.iptables:
@@ -184,6 +203,7 @@
   become: yes
   register: iptables_changed
   when: firewall == "iptables"
+  tags: [prepare]
 
 - name: Add iptables rule to allow access to 
   ansible.builtin.iptables:
@@ -198,6 +218,7 @@
   when:
     - firewall == "iptables"
     - open_admin_ports == "true"
+  tags: [prepare]
 
 - name: Add iptables rule to allow access to port 53 (default DNS service)
   ansible.builtin.iptables:
@@ -211,6 +232,7 @@
   become: yes
   register: iptables_changed
   when: firewall == "iptables"
+  tags: [prepare]
 
 - name: Save iptables rules (Debian/Ubuntu)
   ansible.builtin.shell: iptables-save > /etc/iptables/rules.v4
@@ -218,6 +240,7 @@
   when: 
     - iptables_changed.changed
     - ansible_facts['os_family'] == "Debian"
+  tags: [prepare]
 
 - name: Save iptables rules (RedHat/CentOS)
   ansible.builtin.command: /usr/libexec/iptables/iptables.init save
@@ -225,3 +248,4 @@
   when: 
     - iptables_changed.changed
     - ansible_facts['os_family'] == "RedHat"
+  tags: [prepare]

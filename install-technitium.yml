@@ -3,6 +3,7 @@
   remote_user: root
   roles:
     - role: prepare
+      tags: [prepare]
 
     - role: install-technitium
-      tags: [technitium]
+      tags: [technitium, certbot]
