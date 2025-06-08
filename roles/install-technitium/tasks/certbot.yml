@@ -1,0 +1,62 @@
+- name: Install certbot dependecies on Debian-based systems
+  apt:
+    name:
+      - python3-dev
+      - python3-venv
+      - libaugeas-dev
+      - gcc
+    state: present
+    update_cache: yes
+
+
+- name: Upgrade pip version
+  become: yes
+  ansible.builtin.shell: |
+    python3 -m venv /opt/certbot/
+    /opt/certbot/bin/pip install --upgrade pip
+  args:
+    executable: /bin/sh
+
+
+- name: Install certbot
+  become: yes
+  ansible.builtin.shell: |
+    /opt/certbot/bin/pip install certbot
+    ln -s /opt/certbot/bin/certbot /usr/bin/certbot
+  args:
+    executable: /bin/sh
+
+
+- name: Ensure destination directory exists
+  become: yes
+  file:
+    path: /etc/letsencrypt/renewal-hooks/post
+    state: directory
+    mode: '0755'
+    owner: root
+
+
+- name: Copy the script for cert conversion to target machine
+  become: yes
+  copy: 
+    src: pkcs12convert.sh
+    dest: /etc/letsencrypt/renewal-hooks/post/pkcs12convert.sh
+    owner: root
+    group: root
+    mode: 0644
+
+
+- name: Get TLS cert using certbot
+  become: yes
+  ansible.builtin.shell: |
+    certbot certonly --agree-tos --email admin@frkn.org --webroot -w /opt/technitium/dns/dohwww -d dns.frkn.org
+  args:
+    executable: /bin/sh
+
+
+- name: Convert TLS cert to .pfx format
+  become: yes
+  ansible.builtin.shell: |
+    /etc/letsencrypt/renewal-hooks/post/pkcs12convert.sh
+  args:
+    executable: /bin/sh

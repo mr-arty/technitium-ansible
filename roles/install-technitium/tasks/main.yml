@@ -7,12 +7,14 @@
     state: present
     update_cache: yes
   when: ansible_facts['os_family'] == "Debian"
+  tags: [technitium]
 
 - name: Add Microsoft GPG key
   ansible.builtin.apt_key:
     url: https://packages.microsoft.com/keys/microsoft.asc
     state: present
   when: ansible_facts['os_family'] == "Debian"
+  tags: [technitium]
 
 - name: Set Microsoft repo base URL depending on Ubuntu version
   set_fact:
@@ -30,6 +32,7 @@
     - ansible_facts['os_family'] == "Debian"
     - ansible_distribution_release != "noble"
     - ansible_distribution_release != "oracular"
+  tags: [technitium]
 
 - name: Add Microsoft package repository
   ansible.builtin.apt_repository:
@@ -37,23 +40,27 @@
     state: present
     filename: microsoft-prod
   when: ansible_facts['os_family'] == "Debian" and ansible_distribution_release != "noble"
+  tags: [technitium]
 
 - name: Update apt cache
   apt:
     update_cache: yes
   when: ansible_facts['os_family'] == "Debian"
+  tags: [technitium]
 
 - name: Install ASP.NET Core Runtime 8.0 on Debian-based systems
   apt:
     name: aspnetcore-runtime-8.0
     state: present
   when: ansible_facts['os_family'] == "Debian"
+  tags: [technitium]
 
 - name: Install yum-utils on RedHat-based systems
   yum:
     name: yum-utils
     state: present
   when: ansible_facts['os_family'] == "RedHat"
+  tags: [technitium]
 
 - name: Install Microsoft YUM repo RPM (CentOS 8 or compatible)
   ansible.builtin.yum:
@@ -62,12 +69,14 @@
   when:
     - ansible_facts['distribution'] == "CentOS"
     - ansible_facts['distribution_major_version'] == '8'
+  tags: [technitium]
 
 - name: Install ASP.NET Core Runtime 8.0 on RedHat-based systems
   yum:
     name: aspnetcore-runtime-8.0
     state: present
   when: ansible_facts['os_family'] == "RedHat"
+  tags: [technitium]
 
 ### Next steps (install Technitium) ###
 
@@ -76,6 +85,7 @@
     url: https://download.technitium.com/dns/DnsServerPortable.tar.gz
     dest: /tmp/DnsServerPortable.tar.gz
     mode: '0644'
+  tags: [technitium]
 
 - name: Uncompress installation files
   ansible.builtin.shell: |
@@ -83,6 +93,7 @@
     tar -zxf /tmp/DnsServerPortable.tar.gz -C /opt/technitium/dns
   args:
     executable: /bin/sh
+  tags: [technitium]
 
 - name: Copy systemd service file to /etc/systemd/system/
   ansible.builtin.copy:
@@ -92,22 +103,26 @@
     owner: root
     group: root
     mode: '0644'
+  tags: [technitium]
 
 - name: Enable service to start on boot
   ansible.builtin.systemd:
     name: dns.service
     enabled: true
+  tags: [technitium]
 
 - name: Stop systemd-resolved service on debian, if running
   ansible.builtin.systemd_service:
     name: systemd-resolved
     state: stopped
   when: ansible_facts['os_family'] == "Debian"
+  tags: [technitium]
 
 - name: Make sure a service unit is running
   ansible.builtin.systemd_service:
     name: dns.service
     state: started
+  tags: [technitium]
 
 - name: Replace /etc/resolv.conf with localhost nameserver entry
   ansible.builtin.shell: |
@@ -115,6 +130,7 @@
     echo "nameserver 127.0.0.1" > /etc/resolv.conf 2>> /etc/dns/install.Log
   args:
     executable: /bin/sh
+  tags: [technitium]
 
 - name: Find /etc/NetworkManager/NetworkManager.conf file
   ansible.builtin.find:
@@ -122,6 +138,7 @@
     file_type: file
     patterns: ['NetworkManager.conf']
   register: found_files
+  tags: [technitium]
 
 - name: Replace the [main] block in NetworkManager.conf
   ansible.builtin.replace:
@@ -131,3 +148,9 @@
       [main]
       dns=default
   when: found_files.matched > 0
+  tags: [technitium]
+
+# Import tasks for configuring certbot
+- name: Include certbot tasks
+  import_tasks: certbot.yml
+  when: "'certbot' in ansible_run_tags"

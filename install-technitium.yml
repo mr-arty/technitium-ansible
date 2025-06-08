@@ -2,5 +2,7 @@
   hosts: all
   remote_user: root
   roles:
-    - prepare
-    - install-technitium
+    - role: prepare
+
+    - role: install-technitium
+      tags: [technitium]
