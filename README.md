@@ -13,7 +13,8 @@ The `ansible.cfg` file contains default variables.
 
 The `roles/prepare/files` folder should contain the `authorized_keys` file which contains ssh keys to be copied to target host. You can edit it to add any SSH keys to be copied to the server. You must set `configure_ssh: "true"` in `roles/prepare/defaults/main.yml` in order for this to work. 
 
-**Usage**: `ansible-playbook install-technitium.yml` runs both **prepare** and **install-technitium** roles without certbot tasks
+**Usage**: 
+`ansible-playbook install-technitium.yml` runs both **prepare** and **install-technitium** roles without certbot tasks
 
 
-           `ansible-playbook install-technitium.yml --tags certbot` runs **install-technitium** role with certbot tasks included
+`ansible-playbook install-technitium.yml --tags certbot` runs **install-technitium** role with certbot tasks included
