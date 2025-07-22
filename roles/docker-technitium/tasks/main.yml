@@ -1,0 +1,116 @@
+- name: Install required tools on Debian-based systems
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - docker.io
+    state: present
+    update_cache: yes
+  when: ansible_facts['os_family'] == "Debian"
+  tags: [technitium]
+
+### Install docker compose plugin
+
+- set_fact:
+    docker_config_path: "{{ ansible_env.HOME }}/.docker"
+
+- name: Download Docker Compose plugin
+  environment:
+    DOCKER_CONFIG: "{{ docker_config_path }}"
+  get_url:
+    url: https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64
+    dest: $DOCKER_CONFIG/cli-plugins/docker-compose
+    mode: '0755'
+
+### Next steps (install Technitium)
+
+- name: Stop systemd-resolved service on debian, if running
+  ansible.builtin.systemd_service:
+    name: systemd-resolved
+    state: stopped
+  when: ansible_facts['os_family'] == "Debian"
+  tags: [technitium]
+
+- name: Replace /etc/resolv.conf with localhost nameserver entry
+  ansible.builtin.shell: |
+    rm /etc/resolv.conf >> /etc/dns/install.Log 2>&1
+    echo "nameserver 127.0.0.1" > /etc/resolv.conf 2>> /etc/dns/install.Log
+  args:
+    executable: /bin/sh
+  tags: [technitium]
+
+- name: Find /etc/NetworkManager/NetworkManager.conf file
+  ansible.builtin.find:
+    paths: /etc/NetworkManager/
+    file_type: file
+    patterns: ['NetworkManager.conf']
+  register: found_files
+  tags: [technitium]
+
+- name: Replace the [main] block in NetworkManager.conf
+  ansible.builtin.replace:
+    path: "{{ found_files.files[0].path }}"
+    regexp: '^\[main\]\n.*\n'  # Match [main] + the next line
+    replace: |
+      [main]
+      dns=default
+  when: found_files.matched > 0
+  tags: [technitium]
+
+### Configure certificates using certbot
+
+- name: Ensure destination directory exists
+  become: yes
+  file:
+    path: /root/docker-compose/data
+    state: directory
+    mode: '0755'
+    owner: root
+
+- name: Copy the docker-compose files to target machine
+  become: yes
+  copy: 
+    src: docker-compose.yaml
+    dest: /root/docker-compose/data/docker-compose.yaml
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Run docker-compose (up)
+  community.docker.docker_compose_v2:
+    project_src: /root/docker-compose/data
+    state: present
+    wait: true
+    wait_timeout: 60
+
+- name: Run docker-compose (down)
+  community.docker.docker_compose_v2:
+    project_src: /root/docker-compose/data
+    state: absent
+    wait: true
+    wait_timeout: 30
+
+- name: Remove the first docker-compose file
+  ansible.builtin.shell: |
+    rm /root/docker-compose/data/docker-compose.yaml
+  args:
+    executable: /bin/sh
+  tags: [technitium]
+
+- name: Copy the docker-compose files to target machine
+  become: yes
+  copy: 
+    src: docker-compose-technitium.yaml
+    dest: /root/docker-compose/data/docker-compose.yaml
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Run docker-compose (up)
+  community.docker.docker_compose_v2:
+    project_src: /root/docker-compose/data
+    state: present
+    wait: true
+    wait_timeout: 60
