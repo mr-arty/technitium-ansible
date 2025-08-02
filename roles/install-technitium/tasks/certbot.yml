@@ -49,7 +49,7 @@
 - name: Get TLS cert using certbot
   become: yes
   ansible.builtin.shell: |
-    certbot certonly --agree-tos --email admin@frkn.org --webroot -w /opt/technitium/dns/dohwww -d dns.frkn.org
+    certbot certonly --agree-tos --email admin@yourdomain.com --webroot -w /opt/technitium/dns/dohwww -d dns.yourdomain.com
   args:
     executable: /bin/sh
 
