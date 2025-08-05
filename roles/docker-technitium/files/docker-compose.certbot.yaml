@@ -1,0 +1,74 @@
+services:
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy
+    container_name: nginx-proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ./data/certs:/etc/nginx/certs:ro
+      - ./data/nginx:/etc/nginx/conf.d
+      - ./data/vhost:/etc/nginx/vhost.d
+      - ./data/html:/usr/share/nginx/html
+    networks:
+      - nginx-net
+
+  acme-companion:
+    image: nginxproxy/acme-companion
+    container_name: acme-companion
+    restart: always
+    depends_on:
+      - nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./data/certs:/etc/nginx/certs:rw
+      - ./data/vhost:/etc/nginx/vhost.d
+      - ./data/html:/usr/share/nginx/html
+      - ./data/acme:/etc/acme.sh
+    environment:
+      NGINX_PROXY_CONTAINER: nginx-proxy
+      DEFAULT_EMAIL: admin@frkn.org
+    networks:
+      - nginx-net
+
+  workload1:
+    image: hashicorp/http-echo:latest
+    environment:
+      VIRTUAL_HOST: dns.frdm.app
+      LETSENCRYPT_HOST: dns.frdm.app
+      LETSENCRYPT_EMAIL: admin@frdm.app
+    expose:
+      - "5678"
+    restart: unless-stopped
+    networks:
+      - nginx-net
+
+  workload2:
+    image: hashicorp/http-echo:latest
+    environment:
+      VIRTUAL_HOST: adblock.frdm.app
+      LETSENCRYPT_HOST: adblock.frdm.app
+      LETSENCRYPT_EMAIL: admin@frdm.app
+    expose:
+      - "5678"
+    restart: unless-stopped
+    networks:
+      - nginx-net
+
+  workload3:
+    image: hashicorp/http-echo:latest
+    environment:
+      VIRTUAL_HOST: family.frdm.app
+      LETSENCRYPT_HOST: family.frdm.app
+      LETSENCRYPT_EMAIL: family.frdm.app
+    expose:
+      - "5678"
+    restart: unless-stopped
+    networks:
+      - nginx-net
+
+networks:
+  nginx-net:
+    driver: bridge

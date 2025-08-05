@@ -1,4 +1,5 @@
 - name: Install required tools on Debian-based systems
+  become: yes
   apt:
     name:
       - apt-transport-https
@@ -8,8 +9,9 @@
       - docker.io
     state: present
     update_cache: yes
-  when: ansible_facts['os_family'] == "Debian"
-  tags: [technitium]
+  when: false
+
+#ansible_facts['os_family'] == "Debian"
 
 ### Install docker compose plugin
 
@@ -23,6 +25,7 @@
     url: https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64
     dest: $DOCKER_CONFIG/cli-plugins/docker-compose
     mode: '0755'
+  when: false
 
 ### Next steps (install Technitium)
 
@@ -31,7 +34,6 @@
     name: systemd-resolved
     state: stopped
   when: ansible_facts['os_family'] == "Debian"
-  tags: [technitium]
 
 - name: Replace /etc/resolv.conf with localhost nameserver entry
   ansible.builtin.shell: |
@@ -39,7 +41,6 @@
     echo "nameserver 127.0.0.1" > /etc/resolv.conf 2>> /etc/dns/install.Log
   args:
     executable: /bin/sh
-  tags: [technitium]
 
 - name: Find /etc/NetworkManager/NetworkManager.conf file
   ansible.builtin.find:
@@ -47,7 +48,6 @@
     file_type: file
     patterns: ['NetworkManager.conf']
   register: found_files
-  tags: [technitium]
 
 - name: Replace the [main] block in NetworkManager.conf
   ansible.builtin.replace:
@@ -57,60 +57,77 @@
       [main]
       dns=default
   when: found_files.matched > 0
-  tags: [technitium]
 
 ### Configure certificates using certbot
 
 - name: Ensure destination directory exists
   become: yes
   file:
-    path: /root/docker-compose/data
+    path: "{{ item }}"
     state: directory
     mode: '0755'
     owner: root
+  with_items:
+    - /root/docker-compose/data
+    - /root/docker-compose/data/nginx-static
+    - /root/docker-compose/data/sites-enabled
 
 - name: Copy the docker-compose files to target machine
   become: yes
   copy: 
     src: docker-compose.certbot.yaml
-    dest: /root/docker-compose/data/docker-compose.yaml
+    dest: /root/docker-compose/docker-compose.yaml
     owner: root
     group: root
     mode: 0644
 
 - name: Run docker-compose (up)
   community.docker.docker_compose_v2:
-    project_src: /root/docker-compose/data
+    project_src: /root/docker-compose
     state: present
-    wait: true
-    wait_timeout: 60
+    timeout: 60
+
+- name: Wait 180 seconds for certbot to receive certificates
+  ansible.builtin.shell: |
+    sleep 180
+  args:
+    executable: /bin/sh
 
 - name: Run docker-compose (down)
   community.docker.docker_compose_v2:
-    project_src: /root/docker-compose/data
+    project_src: /root/docker-compose
     state: absent
-    wait: true
-    wait_timeout: 30
+    timeout: 45
 
 - name: Remove the first docker-compose file
   ansible.builtin.shell: |
-    rm /root/docker-compose/data/docker-compose.yaml
+    rm /root/docker-compose/docker-compose.yaml
   args:
     executable: /bin/sh
-  tags: [technitium]
 
 - name: Copy the docker-compose files to target machine
   become: yes
   copy: 
     src: docker-compose.technitium.yaml
-    dest: /root/docker-compose/data/docker-compose.yaml
+    dest: /root/docker-compose/docker-compose.yaml
     owner: root
     group: root
     mode: 0644
 
+- name: Copy nginx config files
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: 0644
+  with_items:
+    - { src: "nginx.conf", dest: "/root/docker-compose/data/nginx-static/nginx.conf" }
+    - { src: "dns.frdm.app", dest: "/root/docker-compose/data/sites-enabled/dns.frdm.app" }
+    - { src: "dns.frdm.app", dest: "/root/docker-compose/data/sites-enabled/adblock.frdm.app" }
+
 - name: Run docker-compose (up)
   community.docker.docker_compose_v2:
-    project_src: /root/docker-compose/data
+    project_src: /root/docker-compose
     state: present
-    wait: true
-    wait_timeout: 60
+    timeout: 60
