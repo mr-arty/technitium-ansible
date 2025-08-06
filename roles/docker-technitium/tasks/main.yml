@@ -71,6 +71,14 @@
     - /root/docker-compose/data
     - /root/docker-compose/data/nginx-static
     - /root/docker-compose/data/sites-enabled
+    - /root/docker-compose/config-1
+    - /root/docker-compose/config-2
+
+- name: Remove any existing docker-compose files
+  ansible.builtin.shell: |
+    rm /root/docker-compose/docker-compose.yaml
+  args:
+    executable: /bin/sh
 
 - name: Copy the docker-compose files to target machine
   become: yes
