@@ -15,7 +15,7 @@
 - name: Ensure destination directory exists
   become: yes
   file:
-    path: /etc/letsencrypt/live/dns.frdm.app
+    path: /etc/letsencrypt/live/{{ dns_hostname }}
     state: directory
     mode: '0755'
     owner: root
@@ -33,8 +33,8 @@
 - name: Convert TLS cert to .pfx format
   become: yes
   ansible.builtin.shell: |
-    cp /root/docker-compose/data/certs/dns.frdm.app/* /etc/letsencrypt/live/dns.frdm.app/
-    /etc/letsencrypt/renewal-hooks/post/pkcs12convert.sh
+    cp /root/docker-compose/data/certs/{{ dns_hostname }}/* /etc/letsencrypt/live/{{ dns_hostname }}/
+    /etc/letsencrypt/renewal-hooks/post/pkcs12convert.sh {{ dns_hostname }}
   args:
     executable: /bin/sh
 
