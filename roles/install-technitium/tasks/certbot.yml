@@ -35,6 +35,14 @@
     mode: '0755'
     owner: root
 
+- name: Ensure destination directory exists
+  become: yes
+  file:
+    path: /etc/letsencrypt/live/dns.frdm.app
+    state: directory
+    mode: '0755'
+    owner: root
+
 
 - name: Copy the script for cert conversion to target machine
   become: yes
@@ -46,17 +54,18 @@
     mode: 0644
 
 
-- name: Get TLS cert using certbot
-  become: yes
-  ansible.builtin.shell: |
-    certbot certonly --agree-tos --email admin@frkn.org --webroot -w /opt/technitium/dns/dohwww -d dns.frkn.org
-  args:
-    executable: /bin/sh
+#- name: Get TLS cert using certbot
+#  become: yes
+#  ansible.builtin.shell: |
+#    certbot certonly --agree-tos --email admin@frkn.org --webroot -w /opt/technitium/dns/dohwww -d dns.frkn.org
+#  args:
+#    executable: /bin/sh
 
 
 - name: Convert TLS cert to .pfx format
   become: yes
   ansible.builtin.shell: |
+    cp /root/docker-compose/data/certs/dns.frdm.app/* /etc/letsencrypt/live/dns.frdm.app/
     /etc/letsencrypt/renewal-hooks/post/pkcs12convert.sh
   args:
     executable: /bin/sh

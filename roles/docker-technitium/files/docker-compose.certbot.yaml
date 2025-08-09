@@ -29,7 +29,7 @@ services:
       - ./data/acme:/etc/acme.sh
     environment:
       NGINX_PROXY_CONTAINER: nginx-proxy
-      DEFAULT_EMAIL: admin@frkn.org
+      DEFAULT_EMAIL: admin@frdm.org
     networks:
       - nginx-net
 
@@ -45,29 +45,29 @@ services:
     networks:
       - nginx-net
 
-  workload2:
-    image: hashicorp/http-echo:latest
-    environment:
-      VIRTUAL_HOST: adblock.frdm.app
-      LETSENCRYPT_HOST: adblock.frdm.app
-      LETSENCRYPT_EMAIL: admin@frdm.app
-    expose:
-      - "5678"
-    restart: unless-stopped
-    networks:
-      - nginx-net
+  #workload2:
+  #  image: hashicorp/http-echo:latest
+  #  environment:
+  #    VIRTUAL_HOST: adblock.frdm.app
+  #    LETSENCRYPT_HOST: adblock.frdm.app
+  #    LETSENCRYPT_EMAIL: admin@frdm.app
+  #  expose:
+  #    - "5678"
+  #  restart: unless-stopped
+  #  networks:
+  #    - nginx-net
 
-  workload3:
-    image: hashicorp/http-echo:latest
-    environment:
-      VIRTUAL_HOST: family.frdm.app
-      LETSENCRYPT_HOST: family.frdm.app
-      LETSENCRYPT_EMAIL: family.frdm.app
-    expose:
-      - "5678"
-    restart: unless-stopped
-    networks:
-      - nginx-net
+  #workload3:
+  #  image: hashicorp/http-echo:latest
+  #  environment:
+  #    VIRTUAL_HOST: family.frdm.app
+  #    LETSENCRYPT_HOST: family.frdm.app
+  #    LETSENCRYPT_EMAIL: family.frdm.app
+  #  expose:
+  #    - "5678"
+  #  restart: unless-stopped
+  #  networks:
+  #    - nginx-net
 
 networks:
   nginx-net:

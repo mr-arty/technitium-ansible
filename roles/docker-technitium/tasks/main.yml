@@ -27,37 +27,6 @@
     mode: '0755'
   when: false
 
-### Next steps (install Technitium)
-
-- name: Stop systemd-resolved service on debian, if running
-  ansible.builtin.systemd_service:
-    name: systemd-resolved
-    state: stopped
-  when: ansible_facts['os_family'] == "Debian"
-
-- name: Replace /etc/resolv.conf with localhost nameserver entry
-  ansible.builtin.shell: |
-    rm /etc/resolv.conf >> /etc/dns/install.Log 2>&1
-    echo "nameserver 127.0.0.1" > /etc/resolv.conf 2>> /etc/dns/install.Log
-  args:
-    executable: /bin/sh
-
-- name: Find /etc/NetworkManager/NetworkManager.conf file
-  ansible.builtin.find:
-    paths: /etc/NetworkManager/
-    file_type: file
-    patterns: ['NetworkManager.conf']
-  register: found_files
-
-- name: Replace the [main] block in NetworkManager.conf
-  ansible.builtin.replace:
-    path: "{{ found_files.files[0].path }}"
-    regexp: '^\[main\]\n.*\n'  # Match [main] + the next line
-    replace: |
-      [main]
-      dns=default
-  when: found_files.matched > 0
-
 ### Configure certificates using certbot
 
 - name: Ensure destination directory exists
@@ -95,9 +64,9 @@
     state: present
     timeout: 60
 
-- name: Wait 180 seconds for certbot to receive certificates
+- name: Wait 120 seconds for certbot to receive certificates
   ansible.builtin.shell: |
-    sleep 180
+    sleep 120
   args:
     executable: /bin/sh
 
@@ -106,36 +75,3 @@
     project_src: /root/docker-compose
     state: absent
     timeout: 45
-
-- name: Remove the first docker-compose file
-  ansible.builtin.shell: |
-    rm /root/docker-compose/docker-compose.yaml
-  args:
-    executable: /bin/sh
-
-- name: Copy the docker-compose files to target machine
-  become: yes
-  copy: 
-    src: docker-compose.technitium.yaml
-    dest: /root/docker-compose/docker-compose.yaml
-    owner: root
-    group: root
-    mode: 0644
-
-- name: Copy nginx config files
-  copy:
-    src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
-    owner: root
-    group: root
-    mode: 0644
-  with_items:
-    - { src: "nginx.conf", dest: "/root/docker-compose/data/nginx-static/nginx.conf" }
-    - { src: "dns.frdm.app", dest: "/root/docker-compose/data/sites-enabled/dns.frdm.app" }
-    - { src: "dns.frdm.app", dest: "/root/docker-compose/data/sites-enabled/adblock.frdm.app" }
-
-- name: Run docker-compose (up)
-  community.docker.docker_compose_v2:
-    project_src: /root/docker-compose
-    state: present
-    timeout: 60
