@@ -1,0 +1,71 @@
+- name: Install required tools on Debian-based systems
+  become: yes
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - docker.io
+    state: present
+    update_cache: yes
+  when: false
+
+#ansible_facts['os_family'] == "Debian"
+
+### Install docker compose plugin
+
+- set_fact:
+    docker_config_path: "{{ ansible_env.HOME }}/.docker"
+
+- name: Download Docker Compose plugin
+  environment:
+    DOCKER_CONFIG: "{{ docker_config_path }}"
+  get_url:
+    url: https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64
+    dest: $DOCKER_CONFIG/cli-plugins/docker-compose
+    mode: '0755'
+  when: false
+
+### Configure certificates using certbot
+
+- name: Ensure destination directory exists
+  become: yes
+  file:
+    path: /root/docker-compose/data
+    state: directory
+    mode: '0755'
+    owner: root
+
+- name: Remove any existing docker-compose files
+  ansible.builtin.shell: |
+    rm /root/docker-compose/docker-compose.yaml
+  args:
+    executable: /bin/sh
+
+- name: Copy the docker-compose files to target machine
+  become: yes
+  copy: 
+    src: docker-compose.certbot.yaml
+    dest: /root/docker-compose/docker-compose.yaml
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Run docker-compose (up)
+  community.docker.docker_compose_v2:
+    project_src: /root/docker-compose
+    state: present
+    timeout: 60
+
+- name: Wait 120 seconds for certbot to receive certificates
+  ansible.builtin.shell: |
+    sleep 120
+  args:
+    executable: /bin/sh
+
+- name: Run docker-compose (down)
+  community.docker.docker_compose_v2:
+    project_src: /root/docker-compose
+    state: absent
+    timeout: 45
