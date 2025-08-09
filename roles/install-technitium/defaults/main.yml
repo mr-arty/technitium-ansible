@@ -1,2 +1,5 @@
 ---
 # defaults file for install-technitium
+dns_hostname: "dns.frdm.app"        # By default, this hostname is used for configuration, it can be overriden using a playbook variable
+                                    # ansible-playbook install-technitium.yml -e "dns_hostname=family.frdm.app"
+                                    # Don't forget to uncomment a section in the docker-compose.certbot.yaml file
