@@ -115,3 +115,8 @@
 - name: Include certbot tasks
   import_tasks: certbot.yml
   when: "'certbot' in ansible_run_tags"
+
+# Import tasks for configuring certbot
+- name: Include API tasks
+  import_tasks: api_configuration.yml
+  when: "'api' in ansible_run_tags"
