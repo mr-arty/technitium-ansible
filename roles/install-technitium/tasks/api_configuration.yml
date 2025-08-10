@@ -1,0 +1,90 @@
+#- name: Fetch user data with query parameters
+#  ansible.builtin.uri:
+#    url: "{{ request_url }}"
+#    method: GET
+#    return_content: true
+#  register: result
+#  vars:
+#    request_url: "{{ api_url }}/api/user/login?user=admin&pass={{ admin_password }}"   # Vars from defaults/main.yml
+
+- name: Send GET request with query parameters to get API token
+  ansible.builtin.uri:
+    url: "{{ request_url }}"
+    method: GET
+    return_content: true
+  register: result
+  vars:
+    request_url: "{{ api_url }}/api/user/createToken?user=admin&pass={{ admin_password }}&tokenName=MyApiToken"   # Vars from defaults/main.yml
+  tags: [api]
+
+- name: Debug response
+  ansible.builtin.debug:
+    var: result.json
+  tags: [api]
+
+- name: Extract token from response
+  ansible.builtin.set_fact:
+    api_token: "{{ result.json.token }}"
+  tags: [api]
+
+- name: Send GET request with multiple query parameters to set DNS settings
+  ansible.builtin.uri:
+    url: "{{ api_url }}/api/settings/set?token={{ api_token | urlencode }}&webServiceEnableTls=true&webServiceTlsPort=53443&webServiceTlsCertificatePath={{ webServiceTlsCertificatePath | urlencode }}&enableDnsOverHttp=false&enableDnsOverTls=false&#enableDnsOverHttps=true&dnsTlsCertificatePath={{ dnsTlsCertificatePath | urlencode }}&preferIPv6=false&logQueries=false&recursion=Allow&enableBlocking=false"
+    method: GET
+    status_code: 200
+    return_content: true
+  register: result
+  vars:
+    webServiceTlsCertificatePath: "/etc/letsencrypt/live/dns.frdm.app/dns.frdm.app.pfx"
+    dnsTlsCertificatePath: "/etc/letsencrypt/live/dns.frdm.app/dns.frdm.app.pfx"
+    blockListUrls: "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
+  tags: [api]
+
+- name: Debug response
+  ansible.builtin.debug:
+    var: result.json
+  tags: [api]
+
+- name: Extract status from response
+  ansible.builtin.set_fact:
+    settings_status: "{{ result.json.status }}"
+  tags: [api]
+
+- name: Print status from set DNS Settings API call
+  ansible.builtin.shell: |
+    echo "Set DNS Settings API call returned status: {{ settings_status }}"
+  args:
+    executable: /bin/sh
+  tags: [api]
+
+# Close port 5380 (admin HTTP port)
+- name: Remove iptables rule for ports 5380
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "5380"
+    match: tcp
+    jump: ACCEPT
+    state: absent
+  become: yes
+  when:
+    - firewall == "iptable
+  tags: [close_admin_port]
+
+- name: Save iptables rules (Debian/Ubuntu)
+  ansible.builtin.shell: iptables-save > /etc/iptables/rules.v4
+  become: yes
+  when: 
+    - iptables_changed.changed
+    - ansible_facts['os_family'] == "Debian"
+  tags: [close_admin_port]
+
+- name: Deny access to port 5380 (for web console access)
+  community.general.ufw:
+    rule: deny
+    port: '5380'
+    proto: 'tcp'
+    direction: in
+  when:
+    - firewall == "ufw"
+  tags: [close_admin_port]
