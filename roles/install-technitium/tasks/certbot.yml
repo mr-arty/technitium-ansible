@@ -1,6 +1,6 @@
 # Import tasks for configuring acme-companion for certbot
 - name: Include acme-companion tasks
-  import_tasks: acme-companion.yml
+  import_tasks: acme_companion.yml
   when: "'acme-companion' in ansible_run_tags"
 
 # Copy and convert certificate from previous step
