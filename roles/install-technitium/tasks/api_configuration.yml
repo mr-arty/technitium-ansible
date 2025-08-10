@@ -6,16 +6,22 @@
   register: result
   vars:
     request_url: "{{ api_url }}/api/user/createToken?user=admin&pass={{ admin_password }}&tokenName=MyApiToken"   # Vars from defaults/main.yml
+  when:
+    - get_api_token == "true"
   tags: [api]
 
 - name: Debug response
   ansible.builtin.debug:
     var: result.json
+  when:
+    - get_api_token == "true"
   tags: [api]
 
 - name: Extract token from response
   ansible.builtin.set_fact:
     api_token: "{{ result.json.token }}"
+  when:
+    - get_api_token == "true"
   tags: [api]
 
 - name: Send GET request with multiple query parameters to set DNS settings
