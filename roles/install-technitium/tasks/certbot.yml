@@ -35,6 +35,7 @@
   ansible.builtin.shell: |
     cp /root/docker-compose/data/certs/{{ dns_hostname }}/* /etc/letsencrypt/live/{{ dns_hostname }}/
     /etc/letsencrypt/renewal-hooks/post/pkcs12convert.sh {{ dns_hostname }}
+
   args:
     executable: /bin/sh
 
