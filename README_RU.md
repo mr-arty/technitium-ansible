@@ -22,13 +22,13 @@
 #### Если создаете API ключ вручную через UI Technitium, создайте ключ и укажите его в переменной api_token: "<API_KEY>", поставьте get_api_token: "false".
 
 Запустите плейбук следующим образом:
-`ansible-playbook install-technitium.yml --tags api,close-admin-port  --tags api`
+`ansible-playbook install-technitium.yml --tags api,close-admin-port`
 
 
 #### Если автоматически, поставьте get_api_token: "false".
 
 Запустите плейбук следующим образом:
-`ansible-playbook install-technitium.yml --tags api  --tags api,close-admin-port -e "admin_password=realPassword"`  <-- Здесь будет новый пароль, который вы установили
+`ansible-playbook install-technitium.yml --tags api,close-admin-port -e "admin_password=realPassword"`  <-- Здесь будет новый пароль, который вы установили
 
 Роль **install-technitium**, запущенная с тегами **api,close-admin-port** выполнит следующие действия через API:
 - Включит DoH (DNS over HTTPS)
