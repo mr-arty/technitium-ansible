@@ -31,10 +31,6 @@
     status_code: 200
     return_content: true
   register: result
-  vars:
-    webServiceTlsCertificatePath: "/etc/letsencrypt/live/dns.frdm.app/dns.frdm.app.pfx"
-    dnsTlsCertificatePath: "/etc/letsencrypt/live/dns.frdm.app/dns.frdm.app.pfx"
-    blockListUrls: "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
   tags: [api]
 
 - name: Debug response

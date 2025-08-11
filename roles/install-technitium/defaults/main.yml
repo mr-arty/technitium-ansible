@@ -9,3 +9,8 @@ admin_password: "veryStrongPassword321"   # Admin password for technitium, it is
 firewall: "iptables"                      # By default, iptables is used for configuring ports. Possible values include "ufw" or "iptables".
 get_api_token: "true"                     # If creating API token manually, set this to false
 api_token: ""                             # If creating API token manually, paste the API token here
+
+# These variables are for the DNS server configuration using API
+webServiceTlsCertificatePath: "/etc/letsencrypt/live/{{ dns_hostname }}/{{ dns_hostname }}.pfx"
+dnsTlsCertificatePath: "/etc/letsencrypt/live/{{ dns_hostname }}/{{ dns_hostname }}.pfx"
+blockListUrls: "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
