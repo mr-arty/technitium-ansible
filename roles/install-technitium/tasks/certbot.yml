@@ -1,36 +1,21 @@
-- name: Install certbot dependecies on Debian-based systems
-  apt:
-    name:
-      - python3-dev
-      - python3-venv
-      - libaugeas-dev
-      - gcc
-    state: present
-    update_cache: yes
+# Import tasks for configuring acme-companion for certbot
+- name: Include acme-companion tasks
+  import_tasks: acme_companion.yml
+  when: "'acme-companion' in ansible_run_tags"
 
-
-- name: Upgrade pip version
-  become: yes
-  ansible.builtin.shell: |
-    python3 -m venv /opt/certbot/
-    /opt/certbot/bin/pip install --upgrade pip
-  args:
-    executable: /bin/sh
-
-
-- name: Install certbot
-  become: yes
-  ansible.builtin.shell: |
-    /opt/certbot/bin/pip install certbot
-    ln -s /opt/certbot/bin/certbot /usr/bin/certbot
-  args:
-    executable: /bin/sh
-
-
+# Copy and convert certificate from previous step
 - name: Ensure destination directory exists
   become: yes
   file:
     path: /etc/letsencrypt/renewal-hooks/post
+    state: directory
+    mode: '0755'
+    owner: root
+
+- name: Ensure destination directory exists
+  become: yes
+  file:
+    path: /etc/letsencrypt/live/{{ dns_hostname }}
     state: directory
     mode: '0755'
     owner: root
@@ -43,20 +28,48 @@
     dest: /etc/letsencrypt/renewal-hooks/post/pkcs12convert.sh
     owner: root
     group: root
-    mode: 0644
-
-
-- name: Get TLS cert using certbot
-  become: yes
-  ansible.builtin.shell: |
-    certbot certonly --agree-tos --email admin@yourdomain.com --webroot -w /opt/technitium/dns/dohwww -d dns.yourdomain.com
-  args:
-    executable: /bin/sh
-
+    mode: 0744
 
 - name: Convert TLS cert to .pfx format
   become: yes
   ansible.builtin.shell: |
-    /etc/letsencrypt/renewal-hooks/post/pkcs12convert.sh
+    cp /root/docker-compose/data/certs/{{ dns_hostname }}/* /etc/letsencrypt/live/{{ dns_hostname }}/
+    /etc/letsencrypt/renewal-hooks/post/pkcs12convert.sh {{ dns_hostname }}
+
   args:
     executable: /bin/sh
+
+# Disable default DNS resolver in Linux
+- name: Stop systemd-resolved service on debian, if running
+  ansible.builtin.systemd_service:
+    name: systemd-resolved
+    state: stopped
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Make sure a service unit is running
+  ansible.builtin.systemd_service:
+    name: dns.service
+    state: started
+
+- name: Replace /etc/resolv.conf with localhost nameserver entry
+  ansible.builtin.shell: |
+    rm /etc/resolv.conf >> /etc/dns/install.Log 2>&1
+    echo "nameserver 127.0.0.1" > /etc/resolv.conf 2>> /etc/dns/install.Log
+  args:
+    executable: /bin/sh
+
+- name: Find /etc/NetworkManager/NetworkManager.conf file
+  ansible.builtin.find:
+    paths: /etc/NetworkManager/
+    file_type: file
+    patterns: ['NetworkManager.conf']
+  register: found_files
+
+- name: Replace the [main] block in NetworkManager.conf
+  ansible.builtin.replace:
+    path: "{{ found_files.files[0].path }}"
+    regexp: '^\[main\]\n.*\n'  # Match [main] + the next line
+    replace: |
+      [main]
+      dns=default
+  when: found_files.matched > 0

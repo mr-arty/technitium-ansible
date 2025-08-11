@@ -17,4 +17,6 @@ The `roles/prepare/files` folder should contain the `authorized_keys` file which
 `ansible-playbook install-technitium.yml` runs both **prepare** and **install-technitium** roles without certbot tasks
 
 
-`ansible-playbook install-technitium.yml --tags certbot` runs **install-technitium** role with certbot tasks included
+`ansible-playbook install-technitium.yml --tags prepare,technitium,certbot,acme-companion` runs **install-technitium** role with certbot tasks included
+
+`ansible-playbook install-technitium.yml --tags api  --tags api,close-admin-port -e "admin_password=realPassword"`  runs **install-technitium** role with tasks to configure API and close the admin port (5380) (the -e option is to override password from defaults/main.yml file)

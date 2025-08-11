@@ -1,2 +1,11 @@
 ---
 # defaults file for install-technitium
+dns_hostname: "dns.frdm.app"              # By default, this hostname is used for configuration, it can be overriden using a playbook variable
+                                          # ansible-playbook install-technitium.yml -e "dns_hostname=family.frdm.app"
+                                          # Don't forget to uncomment a section in the docker-compose.certbot.yaml file
+
+api_url: "http://103.246.144.131:5380"    # The API URL (uses port 5380)  After the API token is created, it can be set to https://dns.frdm.app:53443
+admin_password: "veryStrongPassword321"   # Admin password for technitium, it is used for additional tasks which are using the API
+firewall: "iptables"                      # By default, iptables is used for configuring ports. Possible values include "ufw" or "iptables".
+get_api_token: "true"                     # If creating API token manually, set this to false
+api_token: ""                             # If creating API token manually, paste the API token here

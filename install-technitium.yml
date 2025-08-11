@@ -6,4 +6,4 @@
       tags: [prepare]
 
     - role: install-technitium
-      tags: [technitium, certbot]
+      tags: [technitium, certbot, api]

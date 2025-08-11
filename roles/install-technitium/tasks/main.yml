@@ -111,46 +111,12 @@
     enabled: true
   tags: [technitium]
 
-- name: Stop systemd-resolved service on debian, if running
-  ansible.builtin.systemd_service:
-    name: systemd-resolved
-    state: stopped
-  when: ansible_facts['os_family'] == "Debian"
-  tags: [technitium]
-
-- name: Make sure a service unit is running
-  ansible.builtin.systemd_service:
-    name: dns.service
-    state: started
-  tags: [technitium]
-
-- name: Replace /etc/resolv.conf with localhost nameserver entry
-  ansible.builtin.shell: |
-    rm /etc/resolv.conf >> /etc/dns/install.Log 2>&1
-    echo "nameserver 127.0.0.1" > /etc/resolv.conf 2>> /etc/dns/install.Log
-  args:
-    executable: /bin/sh
-  tags: [technitium]
-
-- name: Find /etc/NetworkManager/NetworkManager.conf file
-  ansible.builtin.find:
-    paths: /etc/NetworkManager/
-    file_type: file
-    patterns: ['NetworkManager.conf']
-  register: found_files
-  tags: [technitium]
-
-- name: Replace the [main] block in NetworkManager.conf
-  ansible.builtin.replace:
-    path: "{{ found_files.files[0].path }}"
-    regexp: '^\[main\]\n.*\n'  # Match [main] + the next line
-    replace: |
-      [main]
-      dns=default
-  when: found_files.matched > 0
-  tags: [technitium]
-
 # Import tasks for configuring certbot
 - name: Include certbot tasks
   import_tasks: certbot.yml
   when: "'certbot' in ansible_run_tags"
+
+# Import tasks for configuring certbot
+- name: Include API tasks
+  import_tasks: api_configuration.yml
+  when: "'api' in ansible_run_tags"

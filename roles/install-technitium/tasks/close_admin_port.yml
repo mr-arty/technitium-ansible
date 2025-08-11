@@ -1,0 +1,39 @@
+# Close port 5380 (admin HTTP port)
+- name: Remove iptables rule for ports 5380
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "5380"
+    jump: ACCEPT
+    state: absent
+  become: yes
+  register: iptables_changed
+  when:
+    - firewall == "iptables"
+
+- name: Add a REJECT iptables rule for port 5380
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "5380"
+    jump: REJECT
+  become: yes
+  register: iptables_changed
+  when:
+    - firewall == "iptables"
+
+- name: Save iptables rules (Debian/Ubuntu)
+  ansible.builtin.shell: iptables-save > /etc/iptables/rules.v4
+  become: yes
+  when: 
+    - iptables_changed.changed
+    - ansible_facts['os_family'] == "Debian"
+
+- name: Deny access to port 5380 (for web console access)
+  community.general.ufw:
+    rule: deny
+    port: '5380'
+    proto: 'tcp'
+    direction: in
+  when:
+    - firewall == "ufw"
