@@ -9,14 +9,17 @@
       - docker.io
     state: present
     update_cache: yes
-  when: false
-
-#ansible_facts['os_family'] == "Debian"
+  when: ansible_facts['os_family'] == "Debian"
 
 ### Install docker compose plugin
 
 - set_fact:
     docker_config_path: "{{ ansible_env.HOME }}/.docker"
+
+- name: Check if Docker Compose plugin is installed
+  ansible.builtin.command: docker compose version
+  register: compose_check
+  ignore_errors: true
 
 - name: Download Docker Compose plugin
   environment:
@@ -25,7 +28,7 @@
     url: https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64
     dest: $DOCKER_CONFIG/cli-plugins/docker-compose
     mode: '0755'
-  when: false
+  when: compose_check.rc != 0
 
 ### Configure certificates using certbot
 
