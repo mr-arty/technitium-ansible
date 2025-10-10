@@ -26,7 +26,7 @@
 
 - name: Send GET request with multiple query parameters to set DNS settings
   ansible.builtin.uri:
-    url: "{{ api_url }}/api/settings/set?token={{ api_token | urlencode }}&webServiceEnableTls=true&webServiceTlsPort=53443&webServiceTlsCertificatePath={{ webServiceTlsCertificatePath | urlencode }}&enableDnsOverHttp=false&enableDnsOverTls=false&#enableDnsOverHttps=true&dnsTlsCertificatePath={{ dnsTlsCertificatePath | urlencode }}&preferIPv6=false&logQueries=false&recursion=Allow&enableBlocking=false"
+    url: "{{ api_url }}/api/settings/set?token={{ api_token | urlencode }}&webServiceEnableTls=true&webServiceTlsPort=53443&webServiceTlsCertificatePath={{ webServiceTlsCertificatePath | urlencode }}&enableDnsOverHttp=false&enableDnsOverTls=false&enableDnsOverHttps=true&dnsTlsCertificatePath={{ dnsTlsCertificatePath | urlencode }}&preferIPv6=false&logQueries=false&recursion=Allow&enableBlocking={{ enableBlocking | urlencode }}&blockListUrls={{ blockListUrls | urlencode }}"
     method: GET
     status_code: 200
     return_content: true

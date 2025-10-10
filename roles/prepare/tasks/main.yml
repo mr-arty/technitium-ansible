@@ -69,6 +69,15 @@
   when: configure_ssh == "true"
   tags: [prepare]
 
+- name: Disabe SSH password authentication (step 2)
+  ansible.builtin.shell: |
+    sed -i 's/^#PasswordAuthentication/PasswordAuthentication/g' /etc/ssh/sshd_config.d/50-cloud-init.conf
+    sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/g' /etc/ssh/sshd_config.d/50-cloud-init.conf
+  args:
+    executable: /bin/sh
+  when: ansible.builtin.stat(path='/etc/ssh/sshd_config.d/50-cloud-init.conf').stat.exists
+  tags: [prepare]
+
 ### Configure ports using ufw ###
 
 - name: Allow access to port 22 (SSH)
